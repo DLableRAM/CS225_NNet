@@ -1,5 +1,10 @@
 CC=nvcc
-CFLAGS=-I
+CFLAGS= -o
+DEPS=defs.cuh
+OBJ=AItest.o kernelDefs.o
 
-NNet: AItest.o kernelDefs.o
-	$(CC) -o NNet AItest.o kernelDefs.o
+%.o: %.cu $(DEPS)
+	$(CC) -c $(CFLAGS) $@ $<
+
+NNet: $(OBJ)
+	$(CC) $(CFLAGS) $@ $^
