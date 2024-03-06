@@ -4,17 +4,11 @@
 #include <system_error>
 #include <iostream>
 
-//enums
-enum thread_params {
-  numBlocks = 1,
-  numThreads = 256
-};
+//static defs
+static const dim3 numBlocks(512,1,1);
+static const dim3 numThreads(512,1,1);
 
 //kernel functions
-//replace these
-__global__ void dotProduct();
-__global__ void activationfunction();
-//with this
 __global__ void inference();
 __global__ void train();
 
@@ -23,7 +17,7 @@ class layer {
   private:
     int inputSize;
     int outputSize;
-    float* weightMatrix;
+    float** weightMatrix;
     float* bias;
   public: 
     //create new layer, defaults to square which is typical for hidden layers
@@ -43,6 +37,7 @@ class layer {
 class neuralnet {
   private:
     //fields
+    std::string name;
     int inputSize;
     int outputSize;
     int hiddenLayerCount;
@@ -52,19 +47,14 @@ class neuralnet {
     layer* hiddenlayers;
     //methods
     //export weights into degree 3 tensor
-    float* exportWeights(layer* layers);
-    //export biases into matrix
-    float* exportBias(layer* layers);
-
-    //restructure these functions to do less kernel calls
-    //since transferring data between host and device is slow
-    //this will involve passing a 3 dimensional array to device memory
-    void dotProduct(float* input1, float* input2, float* output, int size);
-    void activation(float* input, float* bias, float* output, int size);
+    //This is needed to do a cuda memcpy
+    float*** exportWeights(layer* layers);
+    //export biases into matrix, same reason
+    float** exportBias(layer* layers);
   public:
     //methods
     //construct new neuralnet
-    neuralnet(int ins, int ops, int hls, int hlc);
+    neuralnet(int ins, int ops, int hls, int hlc, std::string name);
     //load neuralnet from file
     neuralnet(std::fstream& nnet);
     //inference network
@@ -76,8 +66,8 @@ class neuralnet {
     //set input
     void setInput(float* in) { input = in; }
     //get input, in case you forgot!
-    const float* getInput() { return input; }
+    float* getInput() const { return input; }
     //get output, there is no setter because it is an output
     //hence the name...
-    const float* getOutput() { return output; }
+    float* getOutput() const { return output; }
 };
