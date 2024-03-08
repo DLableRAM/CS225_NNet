@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <iterator>
 #include <system_error>
 #include <iostream>
 
@@ -21,16 +22,24 @@ class layer {
     float* bias;
   public: 
     //create new layer, defaults to square which is typical for hidden layers
-    layer(int i, int o): inputSize(i), outputSize(o) {
+    layer(int i = 0, int o = 0): inputSize(i), outputSize(o) { }
+    //create layer with values (IE from file)
+    layer(int i, int o, float** wm, float* b): inputSize(i), outputSize(o), weightMatrix(wm), bias(b) { }
+    //allocate layer memory
+    void allocLayer() {
       weightMatrix = new float[outputSize][inputSize];
       bias = new float[outputSize];
     }
-    //create layer with values (IE from file)
-    layer(int i, int o, float* wm, float* b): inputSize(i), outputSize(o), weightMatrix(wm), bias(b) { }
+    //set input/output size, this is mainly to configure the endpoint layers.
+    void setInputSize(int in) { inputSize = in; }
+    void setOutputSize(int in) { outputSize = in; }
     //free allocated memory
     ~layer() {
-      delete weights;
-      delete bias;
+      for (int i = 0; i < outputSize; ++i) {
+        delete [] weights[i];
+      }
+      delete [] weights;
+      delete [] bias;
     }
 };
 
@@ -54,9 +63,11 @@ class neuralnet {
   public:
     //methods
     //construct new neuralnet
-    neuralnet(int ins, int ops, int hls, int hlc, std::string name);
+    neuralnet(int ins, int ops, int hls, int hlc, std::string n);
     //load neuralnet from file
-    neuralnet(std::fstream& nnet);
+    neuralnet(std::ifstream& nnet);
+    //clear the allocated memory
+    ~neuralnet();
     //inference network
     void inference(float* input, float* output);
     //train network from file

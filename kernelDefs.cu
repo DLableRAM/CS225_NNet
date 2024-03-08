@@ -1,3 +1,5 @@
+#include "defs.cuh"
+
 __global__ void inference(float* input, int inputSize, float* output, int outputSize, float*** weights, float** bias, int layercount, int layerwidth) {
   //Create row/column indicies
   int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -39,16 +41,20 @@ __global__ void inference(float* input, int inputSize, float* output, int output
   //The final weight matrix needs to adapt to the output neurons,
   //similar to the input of arbitrary size.
   if (row < layerwidth && col < inputSize) {
-      float sum[row];
+      float sum[layerwidth];
       for (int i = 0; i < outputSize; ++i) {
           sum[row] += temp[i] * weights[layercount][row][i];
       }
       output[row] = sum[row];
   }
 
-  //Add bias to first multiplication
-  output[row] += bias[row][0];
+  //Add bias to final multiplication
+  output[row] += bias[row][layercount];
   
   //Sigmoid activation function
   output[row] = 1.0/(1.0 + expf(-temp[row]));
+}
+
+__global__ void train() {
+
 }
