@@ -1,10 +1,10 @@
 CC=nvcc
-CFLAGS= -o
+CFLAGS=-c -o
 DEPS=defs.cuh
-OBJ=AItest.o kernelDefs.o
+OBJ=neuralnet.o kernelDefs.o
 
 %.o: %.cu $(DEPS)
-	$(CC) -c $(CFLAGS) $@ $<
+	$(CC) $(CFLAGS) $@ $<
 
 NNet: $(OBJ)
 	$(CC) $(CFLAGS) $@ $^
