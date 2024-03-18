@@ -27,7 +27,10 @@ class layer {
     layer(int i, int o, float** wm, float* b): inputSize(i), outputSize(o), weightMatrix(wm), bias(b) { }
     //allocate layer memory
     void allocLayer() {
-      weightMatrix = new float[outputSize][inputSize];
+      weightMatrix = new float*[outputSize];
+      for (int i = 0; i < outputSize; ++i) {
+        weightMatrix[i] = new float[inputSize];
+      }
       bias = new float[outputSize];
     }
     //set input/output size, this is mainly to configure the endpoint layers.
@@ -36,9 +39,9 @@ class layer {
     //free allocated memory
     ~layer() {
       for (int i = 0; i < outputSize; ++i) {
-        delete [] weights[i];
+        delete [] weightMatrix[i];
       }
-      delete [] weights;
+      delete [] weightMatrix;
       delete [] bias;
     }
 };
