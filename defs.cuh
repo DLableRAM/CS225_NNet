@@ -57,6 +57,10 @@ class neuralnet {
     float* input;
     float* output;
     layer* hiddenlayers;
+    float*** device_wmatrix;
+    float** device_bias;
+    float* device_input;
+    float* device_output;
     //methods
     //export weights into degree 3 tensor
     //This is needed to do a cuda memcpy
@@ -71,6 +75,8 @@ class neuralnet {
     neuralnet(std::ifstream& nnet);
     //clear the allocated memory
     ~neuralnet();
+    //load into GPU
+    void loadNet();
     //inference network
     void inference(float* input, float* output);
     //train network from file
@@ -85,3 +91,39 @@ class neuralnet {
     //hence the name...
     float* getOutput() const { return output; }
 };
+
+class inputhandler {
+    public:
+        void getint(int& x) {
+            std::cin >> x;
+            while (!std::cin) {
+                std::cin.clear();
+                std::cin.ignore(INT_MAX, '\n');
+                std::cout << "Invalid input. Try again: ";
+                std::cin >> x;
+            }
+        }
+
+        void getfloat(float& x) {
+            std::cin >> x;
+            while (!std::cin) {
+                std::cin.clear();
+                std::cin.ignore(INT_MAX, '\n');
+                std::cout << "Invalid input. Try again: ";
+                std::cin >> x;
+            }
+        }
+
+        std::string getstring(std::string& x) {
+            std::cin >> x;
+            return x;
+        }
+};
+
+class ui : public inputhandler {
+  private:
+    neuralnet* user_nnet;
+  public:
+    //runs the user interface until user quits
+    void run();
+}
