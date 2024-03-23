@@ -58,7 +58,7 @@ __global__ void inference(float* input, int inputSize, float* output, int output
 }
 
 //Train one iteration. Might pre-determine iterations to save kernel calls?
-__global__ void train(float* input, float learnrate, float* sigmoid, int inputSize, float* prediction, float error, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
+__global__ void train(float* input, float learnrate, float* sigmoid, int inputSize, float error, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
   //Since training is weight and neuron independent, we'll parallelize it that way.
   int neurons = threadIdx.x;
   int weightinx = threadIdx.y;
