@@ -1,144 +1,81 @@
 #include "defs.cuh"
 
-__global__ void inference(float* input, int inputSize, float* output, int outputSize, float*** weights, float** bias, int layercount, int layerwidth) {
-  //Create row/column indicies
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
+//NOTE: Originally, I was going to make 2d/3d matricies into arrays of arrays. However, this is stupid.
+//2D array[layer_index*layerwidth + val_index]
+//3D array[layer_index*layercount*layerwidth + neuron_index*layerwidth + weight_index]
+//This SHOULD stay consistent
 
-  //Create temporary vector for intermediate values
-  float temp[layerwidth];
-    
+__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
+  //Create thread indicies
+  //Each independent neuron gets a thread for it's calculations
+  int neurons = threadIdx.x;
+
   //Perform first matrix multiplication
-  if (row < layerwidth && col < inputSize) {
+  if (neurons < layerwidth) {
       float sum[layerwidth];
       for (int i = 0; i < inputSize; ++i) {
-          sum[row] += input[i] * weights[0][row][i];
+          //at layer 0, we don't need to index those
+          sum[neurons] += input[i] * weights[neurons*layerwidth + i];
       }
-      temp[row] = sum[row];
+      output[neurons] = sum[neurons];
+      //Add bias to first multiplication
+      //since it is the first column, with index zero, we don't need column index
+      output[neurons] += bias[neurons];
+  
+      //Sigmoid activation function
+      output[neurons] = 1.0/(1.0 + expf(-output[neurons]));
   }
 
-  //Add bias to first multiplication
-  temp[row] += bias[row][0];
-  
-  //Sigmoid activation function
-  temp[row] = 1.0/(1.0 + expf(-temp[row]));
-
   //Iterate hidden layers
-  if (row < layerwidth) {
+  if (neurons < layerwidth) {
     for (int j = 1; j < (layercount-1); ++j) {
       float sum[layerwidth];
       for (int i = 0; i < layerwidth; ++i) {
-        sum[row] += temp[i] * weights[j][row][i];
+        sum[neurons] += output[(j-1)*layerwidth + i] * weights[j*layercount*layerwidth + neurons*layerwidth + i];
       }
-      temp[row] = sum[row];
+      output[j*layerwidth + neurons] = sum[neurons];
       //Add bias
-      temp[row] += bias[row][j];
+      output[j*layerwidth + neurons] += bias[j*layerwidth + neurons];
       //Sigmoid activation function
-      temp[row] = 1.0/(1.0 + expf(-temp[row]));
+      output[j*layerwidth + neurons] = 1.0/(1.0 + expf(-output[j*layerwidth + neurons]));
     }
   }
 
   //The final weight matrix needs to adapt to the output neurons,
   //similar to the input of arbitrary size.
-  if (row < layerwidth && col < inputSize) {
+  if (neurons < layerwidth) {
       float sum[layerwidth];
       for (int i = 0; i < outputSize; ++i) {
-          sum[row] += temp[i] * weights[layercount][row][i];
+          sum[neurons] += output[(layercount-1)*layerwidth + i] * weights[layercount*layercount*layerwidth + neurons*layerwidth + i];
       }
-      output[row] = sum[row];
-  }
-
-  //Add bias to final multiplication
-  output[row] += bias[row][layercount];
+      output[layercount*layerwidth + neurons] = sum[neurons];
+      //Add bias to final multiplication
+      output[layercount*layerwidth + neurons] += bias[layercount*layerwidth + neurons];
   
-  //Sigmoid activation function
-  output[row] = 1.0/(1.0 + expf(-output[row]));
-}
-
-//This is an alternative version of the inference kernel which returns the full sigmoid output instead of just the output. It is used for backpropagation.
-__global__ void fullSigmoid(float* input, int inputSize, float** output, int outputSize, float*** weights, float** bias, int layercount, int layerwidth) {
-  //Create row/column indicies
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
-    
-  //Perform first matrix multiplication
-  if (row < layerwidth && col < inputSize) {
-      float sum[layerwidth];
-      for (int i = 0; i < inputSize; ++i) {
-          sum[row] += input[i] * weights[0][row][i];
-      }
-      output[0][row] = sum[row];
-  }
-
-  //Add bias to first multiplication
-  output[0][row] += bias[row][0];
-  
-  //Sigmoid activation function
-  output[0][row] = 1.0/(1.0 + expf(-output[0][row]));
-
-  //Iterate hidden layers
-  if (row < layerwidth) {
-    for (int j = 1; j < (layercount-1); ++j) {
-      float sum[layerwidth];
-      for (int i = 0; i < layerwidth; ++i) {
-        sum[row] += output[j-1][i] * weights[j][row][i];
-      }
-      output[j][row] = sum[row];
-      //Add bias
-      output[j][row] += bias[row][j];
       //Sigmoid activation function
-      output[j][row] = 1.0/(1.0 + expf(-output[j][row]));
-    }
+      output[layercount*layerwidth + neurons] = 1.0/(1.0 + expf(-output[layercount*layerwidth + neurons]));
   }
-
-  //The final weight matrix needs to adapt to the output neurons,
-  //similar to the input of arbitrary size.
-  if (row < layerwidth && col < inputSize) {
-      float sum[layerwidth];
-      for (int i = 0; i < outputSize; ++i) {
-          sum[row] += output[layercount-1][i] * weights[layercount][row][i];
-      }
-      output[layercount][row] = sum[row];
-  }
-
-  //Add bias to final multiplication
-  output[layercount][row] += bias[row][layercount];
-  
-  //Sigmoid activation function
-  output[layercount][row] = 1.0/(1.0 + expf(-output[layercount][row]));
-}
-
-//I may just end up doing error calcs on the CPU because the timesave probably isn't worth it.
-__global__ void error(float* predicted, float* actual, float* output, int outputSize) {
-  int thread = threadIdx.x;
-  float temp[outputSize];
-  if (thread < outputSize) {
-  temp[thread] = actual[thread] - predicted[thread];
-  }
-  for (int i = 0; i < outputSize; ++i) {
-    output += temp[i];
-  }
-  output = output/outputSize;
 }
 
 //Train one iteration. Might pre-determine iterations to save kernel calls?
-__global__ void train(float* input, float learnrate, float** sigmoid, int inputSize, float* prediction, float error, int outputSize, float*** weights, float** bias, int layercount, int layerwidth) {
-  int threadx = threadIdx.x;
-  int thready = threadIdx.y;
+__global__ void train(float* input, float learnrate, float* sigmoid, int inputSize, float* prediction, float error, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
+  //Since training is weight and neuron independent, we'll parallelize it that way.
+  int neurons = threadIdx.x;
+  int weightinx = threadIdx.y;
   //the first set of x values for training is the input vector. After that, it is the output vector of the previous layer.
-  if (threadx < layerwidth && thready < inputSize) {
-    weights[0][threadx][thready] -= learnrate * error * sigmoid[0][threadx] * (1 - sigmoid[0][threadx]) * input[thready];
-    bias[0][threadx] -= learnrate * error * sigmoid[0][threadx] * (1 - sigmoid[0][threadx]);
+  if (neurons < layerwidth && weightinx < inputSize) {
+    weights[neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]) * input[neurons];
+    bias[neurons] -= learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]);
   }
   //TODO: parallelize better
   for (int i = 0; i < (layercount - 1); ++i) {
-    if (threadx < layerwidth && thready < layerwidth) {
-      weights[i][threadx][thready] -= learnrate * error * sigmoid[i][threadx] * (1 - sigmoid[i][threadx]) * sigmoid[i-1][threadx];
-      bias[i][threadx] -= learnrate * error * sigmoid[i][threadx] * (1 - sigmoid[i][threadx]);
+    if (neurons < layerwidth && weightinx < layerwidth) {
+      weights[i*layercount*layerwidth + neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]) * sigmoid[(i-1)*layerwidth + neurons];
+      bias[i*layerwidth + neurons] -= learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]);
     }
   }
-  if (threadx < layerwidth && thready < outputSize) {
-    weights[layercount][threadx][thready] -= learnrate * error * sigmoid[layercount][threadx] * (1 - sigmoid[layercount][threadx]) * input[thready];
-    bias[layercount][threadx] -= learnrate * error * sigmoid[layercount][threadx] * (1 - sigmoid[layercount][threadx]);
+  if (neurons < layerwidth && weightinx < outputSize) {
+    weights[layercount*layercount*layerwidth + neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]) * sigmoid[(layercount-1)*layerwidth + neurons];
+    bias[layercount*layerwidth + neurons] -= learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]);
   }
 }
