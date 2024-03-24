@@ -53,3 +53,10 @@ float* neuralnet::getOutput() {
   cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
   return output;
 }
+
+//operator overloading
+std::ostream& operator<< (std::ostream& os, const neuralnet& n) {
+  os << n.name;
+  return os;
+}
+

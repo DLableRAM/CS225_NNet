@@ -60,12 +60,6 @@ class neuralnet {
     friend std::ostream& operator<< (std::ostream& os, const neuralnet& n);
 };
 
-//and I'll just put the implementation right here since it's so short.
-std::ostream& operator<< (std::ostream& os, const neuralnet& n) {
-  os << n.name;
-  return os;
-}
-
 class inputhandler {
     public:
         void getint(int& x) {
