@@ -41,3 +41,15 @@ void neuralnet::loadNet() {
   cudaMemcpy(device_wmatrix, wmatrix, wmatrixDataSize, cudaMemcpyHostToDevice);
   cudaMemcpy(device_bias, bias, biasDataSize, cudaMemcpyHostToDevice);
 }
+
+float* neuralnet::getInput() {
+  //I don't think I should cudaMemcpy here?
+  return input;
+}
+
+float* neuralnet::getOutput() {
+  //Pulls output from vram
+  int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
+  cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
+  return output;
+}
