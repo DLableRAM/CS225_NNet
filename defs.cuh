@@ -57,12 +57,12 @@ class neuralnet {
     //hence the name...
     float* getOutput();
     //I really don't like friend functions but the assignment requires it.
-    friend std::ostream& operator<< (std::ostream& os);
+    friend std::ostream& operator<< (std::ostream& os, const neuralnet& n);
 };
 
 //and I'll just put the implementation right here since it's so short.
-friend std::ostream& operator<< (std::ostream& os) {
-  os << name;
+std::ostream& operator<< (std::ostream& os, const neuralnet& n) {
+  os << n.name;
   return os;
 }
 
@@ -90,7 +90,6 @@ class inputhandler {
 
         void getstring(std::string& x) {
             std::cin >> x;
-            return x;
         }
 };
 
@@ -101,4 +100,4 @@ class ui : public inputhandler {
   public:
     //runs the user interface until user quits
     void run();
-}
+};

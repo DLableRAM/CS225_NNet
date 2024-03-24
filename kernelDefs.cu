@@ -5,7 +5,7 @@
 //3D array[layer_index*layercount*layerwidth + neuron_index*layerwidth + weight_index]
 //This SHOULD stay consistent
 
-__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
+__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, const int layerwidth) {
   //Create thread indicies
   //Each independent neuron gets a thread for it's calculations
   int neurons = threadIdx.x;
