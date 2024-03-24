@@ -48,14 +48,14 @@ class neuralnet {
     //train network from file
     void train(std::string directory);
     //save network to file
-    void save(std::string path);
+    //void save(std::string path);
     //set input
     void setInput(float* in) { input = in; }
     //get input, in case you forgot!
-    float* getInput() const { return input; }
+    float* getInput();
     //get output, there is no setter because it is an output
     //hence the name...
-    float* getOutput() const { return output; }
+    float* getOutput();
     //I really don't like friend functions but the assignment requires it.
     friend std::ostream& operator<< (std::ostream& os);
 };
@@ -96,6 +96,7 @@ class inputhandler {
 
 class ui : public inputhandler {
   private:
+    //neural net pointer so the user can define one
     neuralnet* user_nnet;
   public:
     //runs the user interface until user quits
