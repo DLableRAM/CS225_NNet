@@ -5,19 +5,17 @@
 //3D array[layer_index*layercount*layerwidth + neuron_index*layerwidth + weight_index]
 //This SHOULD stay consistent
 
-__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, const int layerwidth) {
+__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
   //Create thread indicies
   //Each independent neuron gets a thread for it's calculations
   int neurons = threadIdx.x;
 
   //Perform first matrix multiplication
   if (neurons < layerwidth) {
-      float sum[layerwidth];
       for (int i = 0; i < inputSize; ++i) {
           //at layer 0, we don't need to index those
-          sum[neurons] += input[i] * weights[neurons*layerwidth + i];
+          output[neurons] += input[i] * weights[neurons*layerwidth + i];
       }
-      output[neurons] = sum[neurons];
       //Add bias to first multiplication
       //since it is the first column, with index zero, we don't need column index
       output[neurons] += bias[neurons];
@@ -25,15 +23,12 @@ __global__ void inference(float* input, int inputSize, float* output, int output
       //Sigmoid activation function
       output[neurons] = 1.0/(1.0 + expf(-output[neurons]));
   }
-
   //Iterate hidden layers
   if (neurons < layerwidth) {
     for (int j = 1; j < (layercount-1); ++j) {
-      float sum[layerwidth];
       for (int i = 0; i < layerwidth; ++i) {
-        sum[neurons] += output[(j-1)*layerwidth + i] * weights[j*layercount*layerwidth + neurons*layerwidth + i];
+        output[j*layerwidth + neurons] += output[(j-1)*layerwidth + i] * weights[j*layercount*layerwidth + neurons*layerwidth + i];
       }
-      output[j*layerwidth + neurons] = sum[neurons];
       //Add bias
       output[j*layerwidth + neurons] += bias[j*layerwidth + neurons];
       //Sigmoid activation function
@@ -44,11 +39,9 @@ __global__ void inference(float* input, int inputSize, float* output, int output
   //The final weight matrix needs to adapt to the output neurons,
   //similar to the input of arbitrary size.
   if (neurons < layerwidth) {
-      float sum[layerwidth];
       for (int i = 0; i < outputSize; ++i) {
-          sum[neurons] += output[(layercount-1)*layerwidth + i] * weights[layercount*layercount*layerwidth + neurons*layerwidth + i];
+          output[layercount*layerwidth + neurons] += output[(layercount-1)*layerwidth + i] * weights[layercount*layercount*layerwidth + neurons*layerwidth + i];
       }
-      output[layercount*layerwidth + neurons] = sum[neurons];
       //Add bias to final multiplication
       output[layercount*layerwidth + neurons] += bias[layercount*layerwidth + neurons];
   
