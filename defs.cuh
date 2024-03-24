@@ -56,7 +56,15 @@ class neuralnet {
     //get output, there is no setter because it is an output
     //hence the name...
     float* getOutput() const { return output; }
+    //I really don't like friend functions but the assignment requires it.
+    friend std::ostream& operator<< (std::ostream& os);
 };
+
+//and I'll just put the implementation right here since it's so short.
+friend std::ostream& operator<< (std::ostream& os) {
+  os << name;
+  return os;
+}
 
 class inputhandler {
     public:
