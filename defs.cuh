@@ -4,14 +4,15 @@
 #include <iterator>
 #include <system_error>
 #include <iostream>
+#include <ostream>
 
 //static defs
-static const dim3 numBlocks(512,1,1);
-static const dim3 numThreads(512,1,1);
+static const dim3 numBlocks(1,1,1);
+static const dim3 numThreads(512,512,1);
 
 //kernel functions
-__global__ void inference();
-__global__ void train();
+__global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth);
+__global__ void train(float* input, float learnrate, float* sigmoid, int inputSize, float error, int outputSize, float* weights, float* bias, int layercount, int layerwidth);
 
 //I know making global variables is bad. But this is just to store an output string in the event something goes wrong. Would rather just reuse this everywhere than allocate a ton of these.
 static std::string errmsg;
@@ -44,9 +45,9 @@ class neuralnet {
     //load into GPU
     void loadNet();
     //inference network,
-    void inference();
+    void infer();
     //train network from file
-    void train(std::string directory);
+    void trn(std::string directory, float lr);
     //save network to file
     //void save(std::string path);
     //set input
@@ -55,7 +56,7 @@ class neuralnet {
     float* getInput();
     //get output, there is no setter because it is an output
     //hence the name...
-    float* getOutput();
+    void getOutput(float* out);
     //I really don't like friend functions but the assignment requires it.
     friend std::ostream& operator<< (std::ostream& os, const neuralnet& n);
 };
@@ -94,4 +95,5 @@ class ui : public inputhandler {
   public:
     //runs the user interface until user quits
     void run();
+    void nnetUserCreate();
 };

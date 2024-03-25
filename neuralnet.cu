@@ -47,11 +47,36 @@ float* neuralnet::getInput() {
   return input;
 }
 
-float* neuralnet::getOutput() {
+void neuralnet::getOutput(float* out) {
   //Pulls output from vram
   int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
   cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
-  return output;
+  for (int i = 0; i < outputSize; ++i) {
+    out[i] = output[i];
+  }
+}
+
+void neuralnet::infer() {
+  //Copy input to vram
+  int inputDataSize = inputSize*sizeof(float);
+  cudaMemcpy(device_input, input, inputDataSize, cudaMemcpyHostToDevice);
+  //call gpu kernel
+  inference<<<numBlocks, numThreads>>>(device_input, inputSize, device_output, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
+  cudaDeviceSynchronize();
+}
+
+void neuralnet::trn(std::string directory, float lr) {
+  //load dataset from file
+
+  //iterate over file values
+
+  //load input to vram
+
+  //inference
+
+  //get error
+  float er;
+  train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
 }
 
 //operator overloading
