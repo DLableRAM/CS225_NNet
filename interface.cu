@@ -32,5 +32,10 @@ void ui::nnetUserCreate() {
   user_nnet = new neuralnet(ins, ops, hls, hlc, n);
   std::cout<<"Neural network created. Loading into vram..."<<std::endl;
 
-  user_nnet->loadNet();
+  try {
+    user_nnet->loadNet();
+  }
+  catch(std::string s) {
+    std::cout<<s<<std::endl;
+  }
 }

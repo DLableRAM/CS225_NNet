@@ -35,6 +35,11 @@ void neuralnet::loadNet() {
   cudaMalloc(&device_output, outputDataSize);
   cudaMalloc(&device_wmatrix, wmatrixDataSize);
   cudaMalloc(&device_bias, biasDataSize);
+  
+  if ((device_input == NULL) || (device_output == NULL) || (device_wmatrix == NULL) || (device_bias == NULL)) {
+    errmsg = "Failed to allocate memory in VRAM.";
+    throw(errmsg);
+  }
 
   cudaMemcpy(device_input, input, inputDataSize, cudaMemcpyHostToDevice);
   cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyHostToDevice);
