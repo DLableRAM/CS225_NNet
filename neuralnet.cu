@@ -30,7 +30,6 @@ void neuralnet::loadNet() {
   int wmatrixDataSize = (hiddenLayerSize*hiddenLayerSize*hiddenLayerCount + inputSize*hiddenLayerSize + outputSize*hiddenLayerSize)*sizeof(float);
   int biasDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
 
-  //TODO: Add malloc error checking.
   cudaMalloc(&device_input, inputDataSize);
   cudaMalloc(&device_output, outputDataSize);
   cudaMalloc(&device_wmatrix, wmatrixDataSize);
@@ -47,18 +46,19 @@ void neuralnet::loadNet() {
   cudaMemcpy(device_bias, bias, biasDataSize, cudaMemcpyHostToDevice);
 }
 
-float* neuralnet::getInput() {
-  //I don't think I should cudaMemcpy here?
-  return input;
-}
-
 void neuralnet::getOutput(float* out) {
-  //Pulls output from vram
-  int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
-  cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
   for (int i = 0; i < outputSize; ++i) {
     out[i] = output[i];
   }
+}
+
+void neuralnet::setInput(float* in) {
+  for (int i = 0; i < inputSize; ++i) {
+    input[i] = in[i];
+  }
+  //write input to vram
+  int inputDataSize = inputSize*sizeof(float);
+  cudaMemcpy(device_input, input, inputDataSize, cudaMemcpyHostToDevice);
 }
 
 void neuralnet::infer() {
@@ -68,20 +68,41 @@ void neuralnet::infer() {
   //call gpu kernel
   inference<<<numBlocks, numThreads>>>(device_input, inputSize, device_output, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
   cudaDeviceSynchronize();
+  int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
+  cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
 }
 
-void neuralnet::trn(std::string directory, float lr) {
-  //load dataset from file
+void neuralnet::trn(std::string directory, float lr, int epochs) {
+  //load dataset from files
+  std::ifstream fileread;
+  int filecount;
+  float predictionFiles[filecount*outputSize];
+  float inputFiles[filecount*inputSize];
+  //begin training loop
+  for (epochs = epochs; epochs > 0; --epochs) {
+  for (int j = 0; j < filecount; ++j) {
+    //load input to vram
 
-  //iterate over file values
+    //inference
+    //setInput(in);
+    infer();
+    //get error
+    float er;
+    float result[outputSize];
+    float prediction[outputSize];
+    float sum;
+    for (int i = 0; i < outputSize; ++i) {
+      result[i] = output[hiddenLayerCount*hiddenLayerSize + i];
+    }
 
-  //load input to vram
-
-  //inference
-
-  //get error
-  float er;
-  train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
+    for (int i = 0; i < outputSize; ++i) {
+      sum += (result[i] - prediction[i]);
+    }
+    er = (2.0/outputSize)*sum;
+    //call kernel
+    train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
+  }
+  }
 }
 
 //operator overloading

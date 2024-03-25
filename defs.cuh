@@ -47,11 +47,11 @@ class neuralnet {
     //inference network,
     void infer();
     //train network from file
-    void trn(std::string directory, float lr);
+    void trn(std::string directory, float lr, int epochs);
     //save network to file
     //void save(std::string path);
     //set input
-    void setInput(float* in) { input = in; }
+    void setInput(float* in);
     //get input, in case you forgot!
     float* getInput();
     //get output, there is no setter because it is an output
