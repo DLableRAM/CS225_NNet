@@ -72,37 +72,69 @@ void neuralnet::infer() {
   cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
 }
 
-void neuralnet::trn(std::string directory, float lr, int epochs) {
+void neuralnet::trn(float lr, int epochs, std::string directory) {
   //load dataset from files
+  //files must be named numbers from 0 to whatever you want as long as
+  //they are continuous ints.
+  //they also MUST be formatted as input vector followed by output vector on newlines
   std::ifstream fileread;
-  int filecount;
-  float predictionFiles[filecount*outputSize];
-  float inputFiles[filecount*inputSize];
+  int filecount = 0;
+  bool validfile;
+  std::string fulldir;
+  std::cout<<"Scanning valid files..."<<std::endl;
+  do {
+    fulldir = /*directory + "/" + */std::to_string(filecount);
+    fileread.open(fulldir);
+    validfile = false;
+    if (fileread.good()) {
+      ++filecount;
+      validfile = true;
+    }
+    fileread.close();
+  } while(validfile);
+  std::cout<<filecount<<" valid files found."<<std::endl;
   //begin training loop
   for (epochs = epochs; epochs > 0; --epochs) {
   for (int j = 0; j < filecount; ++j) {
+    fulldir = directory + "/" + std::to_string(j);
+    fileread.open(fulldir);
     //load input to vram
-
+    float inputbuffer[inputSize];
+    for (int i = 0; i < inputSize; ++i) {
+      fileread >> inputbuffer[i];
+    }
     //inference
-    //setInput(in);
+    setInput(inputbuffer);
     infer();
     //get error
     float er;
     float result[outputSize];
     float prediction[outputSize];
-    float sum;
     for (int i = 0; i < outputSize; ++i) {
       result[i] = output[hiddenLayerCount*hiddenLayerSize + i];
     }
-
     for (int i = 0; i < outputSize; ++i) {
-      sum += (result[i] - prediction[i]);
+      fileread >> prediction[i];
     }
-    er = (2.0/outputSize)*sum;
+    fileread.close();
+    for (int i = 0; i < outputSize; ++i) {
+      er += (result[i] - prediction[i]);
+    }
+    er = (2.0/outputSize)*er;
+    std::cout<<"Current error is:"<<er<<std::endl;
     //call kernel
     train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
+    cudaDeviceSynchronize();
   }
   }
+}
+
+int neuralnet::getInputSize() {
+  return inputSize;
+}
+
+int neuralnet::getOutputSize() {
+  return outputSize;
 }
 
 //operator overloading

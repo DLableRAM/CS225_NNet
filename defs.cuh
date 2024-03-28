@@ -47,13 +47,15 @@ class neuralnet {
     //inference network,
     void infer();
     //train network from file
-    void trn(std::string directory, float lr, int epochs);
+    void trn(float lr, int epochs, std::string directory = "dataset");
     //save network to file
     //void save(std::string path);
     //set input
     void setInput(float* in);
-    //get input, in case you forgot!
-    float* getInput();
+    //get inputSize
+    int getInputSize();
+    //get outputSize
+    int getOutputSize();
     //get output, there is no setter because it is an output
     //hence the name...
     void getOutput(float* out);
@@ -96,4 +98,5 @@ class ui : public inputhandler {
     //runs the user interface until user quits
     void run();
     void nnetUserCreate();
+    void mainmenu(int input);
 };
