@@ -2,6 +2,12 @@
 
 void ui::run() {
   int userinpt = 1;
+  cudaDeviceSynchronize();
+  cudaError_t error = cudaGetLastError();
+  if (error!=cudaSuccess) {
+    std::cout<<"Cuda device has failed or is invalid."<<std::endl;
+    return;
+  }
   nnetUserCreate();
   while (userinpt != 0) {
     std::cout<<"Neural net: "<<*user_nnet<<" is active."<<std::endl;

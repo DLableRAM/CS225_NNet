@@ -59,6 +59,7 @@ void neuralnet::setInput(float* in) {
   //write input to vram
   int inputDataSize = inputSize*sizeof(float);
   cudaMemcpy(device_input, input, inputDataSize, cudaMemcpyHostToDevice);
+  cudaDeviceSynchronize(); 
 }
 
 void neuralnet::infer() {
@@ -70,6 +71,12 @@ void neuralnet::infer() {
   cudaDeviceSynchronize();
   int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
   cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+  cudaError_t error = cudaGetLastError();
+  if (error!=cudaSuccess) {
+    std::cout<<"Cuda device has failed or is invalid."<<std::endl;
+    return;
+  }
 }
 
 void neuralnet::trn(float lr, int epochs, std::string directory) {
@@ -94,9 +101,10 @@ void neuralnet::trn(float lr, int epochs, std::string directory) {
   } while(validfile);
   std::cout<<filecount<<" valid files found."<<std::endl;
   //begin training loop
+  float avgerr;
   for (epochs = epochs; epochs > 0; --epochs) {
   for (int j = 0; j < filecount; ++j) {
-    fulldir = directory + "/" + std::to_string(j);
+    fulldir = /*directory + "/" + */std::to_string(j);
     fileread.open(fulldir);
     //load input to vram
     float inputbuffer[inputSize];
@@ -106,6 +114,7 @@ void neuralnet::trn(float lr, int epochs, std::string directory) {
     //inference
     setInput(inputbuffer);
     infer();
+    cudaDeviceSynchronize();
     //get error
     float er;
     float result[outputSize];
@@ -114,18 +123,26 @@ void neuralnet::trn(float lr, int epochs, std::string directory) {
       result[i] = output[hiddenLayerCount*hiddenLayerSize + i];
     }
     for (int i = 0; i < outputSize; ++i) {
-      fileread >> prediction[i];
+      fileread >> prediction[i]; 
     }
     fileread.close();
     for (int i = 0; i < outputSize; ++i) {
-      er += (result[i] - prediction[i]);
+      er += abs((result[i] - prediction[i]));
     }
     er = (2.0/outputSize)*er;
-    std::cout<<"Current error is:"<<er<<std::endl;
+    avgerr += er;
     //call kernel
     train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
     cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if (error!=cudaSuccess) {
+      std::cout<<"Cuda device has failed or is invalid."<<std::endl;
+      return;
+    }
   }
+  avgerr /= filecount;
+  std::cout<<"The current error is: "<<avgerr<<std::endl;
+  avgerr = 0;
   }
 }
 

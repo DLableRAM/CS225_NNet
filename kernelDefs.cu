@@ -6,6 +6,7 @@
 //This SHOULD stay consistent
 
 __global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
+  printf("Kernel launched.");
   //Create thread indicies
   //Each independent neuron gets a thread for it's calculations
   int neurons = threadIdx.x;

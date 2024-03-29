@@ -7,8 +7,8 @@
 #include <ostream>
 
 //static defs
-static const dim3 numBlocks(1,1,1);
-static const dim3 numThreads(512,512,1);
+static const dim3 numBlocks(5,5,1);
+static const dim3 numThreads(32,32,1);
 
 //kernel functions
 __global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth);
