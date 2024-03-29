@@ -15,25 +15,25 @@ __global__ void inference(float* input, int inputSize, float* output, int output
   if (neurons < layerwidth) {
       for (int i = 0; i < inputSize; ++i) {
           //at layer 0, we don't need to index those
-          output[neurons] += input[i] * weights[neurons*layerwidth + i];
+          atomicAdd(&output[neurons], input[i] * weights[neurons*layerwidth + i]);
       }
       //Add bias to first multiplication
       //since it is the first column, with index zero, we don't need column index
-      output[neurons] += bias[neurons];
+      atomicAdd(&output[neurons], bias[neurons]);
   
       //Sigmoid activation function
-      output[neurons] = 1.0/(1.0 + expf(-output[neurons]));
+      atomicExch(&output[neurons], 1.0/(1.0 + expf(-output[neurons])));
   }
   //Iterate hidden layers
   if (neurons < layerwidth) {
     for (int j = 1; j < (layercount-1); ++j) {
       for (int i = 0; i < layerwidth; ++i) {
-        output[j*layerwidth + neurons] += output[(j-1)*layerwidth + i] * weights[j*layercount*layerwidth + neurons*layerwidth + i];
+        atomicAdd(&output[j*layerwidth + neurons], output[(j-1)*layerwidth + i] * weights[j*layercount*layerwidth + neurons*layerwidth + i]);
       }
       //Add bias
-      output[j*layerwidth + neurons] += bias[j*layerwidth + neurons];
+      atomicAdd(&output[j*layerwidth + neurons], bias[j*layerwidth + neurons]);
       //Sigmoid activation function
-      output[j*layerwidth + neurons] = 1.0/(1.0 + expf(-output[j*layerwidth + neurons]));
+      atomicExch(&output[j*layerwidth + neurons], 1.0/(1.0 + expf(-output[j*layerwidth + neurons])));
     }
   }
 
@@ -41,13 +41,13 @@ __global__ void inference(float* input, int inputSize, float* output, int output
   //similar to the input of arbitrary size.
   if (neurons < layerwidth) {
       for (int i = 0; i < outputSize; ++i) {
-          output[layercount*layerwidth + neurons] += output[(layercount-1)*layerwidth + i] * weights[layercount*layercount*layerwidth + neurons*layerwidth + i];
+          atomicAdd(&output[layercount*layerwidth + neurons], output[(layercount-1)*layerwidth + i] * weights[layercount*layercount*layerwidth + neurons*layerwidth + i]);
       }
       //Add bias to final multiplication
-      output[layercount*layerwidth + neurons] += bias[layercount*layerwidth + neurons];
+      atomicAdd(&output[layercount*layerwidth + neurons], bias[layercount*layerwidth + neurons]);
   
       //Sigmoid activation function
-      output[layercount*layerwidth + neurons] = 1.0/(1.0 + expf(-output[layercount*layerwidth + neurons]));
+      atomicExch(&output[layercount*layerwidth + neurons], 1.0/(1.0 + expf(-output[layercount*layerwidth + neurons])));
   }
 }
 
