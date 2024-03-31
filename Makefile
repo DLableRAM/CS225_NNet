@@ -1,5 +1,5 @@
 CC=nvcc
-CFLAGS= -o
+CFLAGS= -G -o
 DEPS=defs.cuh
 OBJ=neuralnet.o kernelDefs.o interface.o main.o
 

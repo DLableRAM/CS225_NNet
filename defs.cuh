@@ -7,7 +7,7 @@
 #include <ostream>
 
 //static defs
-static const dim3 numBlocks(5,5,1);
+static const dim3 numBlocks(50,50,1);
 static const dim3 numThreads(32,32,1);
 
 //kernel functions

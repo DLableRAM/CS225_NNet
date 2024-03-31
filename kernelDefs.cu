@@ -6,10 +6,10 @@
 //This SHOULD stay consistent
 
 __global__ void inference(float* input, int inputSize, float* output, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
-  printf("Kernel launched.");
+  //printf("Kernel launched.");
   //Create thread indicies
   //Each independent neuron gets a thread for it's calculations
-  int neurons = threadIdx.x;
+  int neurons = (blockIdx.x+blockIdx.y)*blockDim.x + threadIdx.x;
 
   //Perform first matrix multiplication
   if (neurons < layerwidth) {
@@ -54,22 +54,22 @@ __global__ void inference(float* input, int inputSize, float* output, int output
 //Train one iteration. Might pre-determine iterations to save kernel calls?
 __global__ void train(float* input, float learnrate, float* sigmoid, int inputSize, float error, int outputSize, float* weights, float* bias, int layercount, int layerwidth) {
   //Since training is weight and neuron independent, we'll parallelize it that way.
-  int neurons = threadIdx.x;
-  int weightinx = threadIdx.y;
+  int neurons = (blockIdx.x*blockDim.x) + threadIdx.x;
+  int weightinx = (blockIdx.y*blockDim.y) + threadIdx.y;
   //the first set of x values for training is the input vector. After that, it is the output vector of the previous layer.
   if (neurons < layerwidth && weightinx < inputSize) {
-    weights[neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]) * input[neurons];
-    bias[neurons] -= learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]);
+    atomicAdd(&weights[neurons*layerwidth + weightinx], -learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]) * input[neurons]);
+    atomicAdd(&bias[neurons], -learnrate * error * sigmoid[neurons] * (1 - sigmoid[neurons]));
   }
   //TODO: parallelize better
   for (int i = 0; i < (layercount - 1); ++i) {
     if (neurons < layerwidth && weightinx < layerwidth) {
-      weights[i*layercount*layerwidth + neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]) * sigmoid[(i-1)*layerwidth + neurons];
-      bias[i*layerwidth + neurons] -= learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]);
+      atomicAdd(&weights[i*layercount*layerwidth + neurons*layerwidth + weightinx], -learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]) * sigmoid[(i-1)*layerwidth + neurons]);
+      atomicAdd(&bias[i*layerwidth + neurons], -learnrate * error * sigmoid[i*layerwidth + neurons] * (1 - sigmoid[i*layerwidth + neurons]));
     }
   }
   if (neurons < layerwidth && weightinx < outputSize) {
-    weights[layercount*layercount*layerwidth + neurons*layerwidth + weightinx] -= learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]) * sigmoid[(layercount-1)*layerwidth + neurons];
-    bias[layercount*layerwidth + neurons] -= learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]);
+    atomicAdd(&weights[layercount*layercount*layerwidth + neurons*layerwidth + weightinx], -learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]) * sigmoid[(layercount-1)*layerwidth + neurons]);
+    atomicAdd(&bias[layercount*layerwidth + neurons], -learnrate * error * sigmoid[layercount*layerwidth + neurons] * (1 - sigmoid[layercount*layerwidth + neurons]));
   }
 }

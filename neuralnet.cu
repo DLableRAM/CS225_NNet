@@ -7,9 +7,23 @@ neuralnet::neuralnet(int ins, int ops, int hls, int hlc, std::string n) {
   hiddenLayerSize = hls;
   hiddenLayerCount = hlc;
   input = new float[inputSize];
-  output = new float[hiddenLayerSize*hiddenLayerCount + outputSize];
-  wmatrix = new float[hiddenLayerSize*hiddenLayerSize*hiddenLayerCount + inputSize*hiddenLayerSize + outputSize*hiddenLayerSize];
-  bias = new float[hiddenLayerSize*hiddenLayerCount + outputSize];
+  output = new float[hiddenLayerSize*(hiddenLayerCount+2) + outputSize];
+  wmatrix = new float[hiddenLayerSize*hiddenLayerSize*hiddenLayerCount + inputSize*(hiddenLayerSize+1) + outputSize*(hiddenLayerSize+1)];
+  bias = new float[hiddenLayerSize*(hiddenLayerCount+2) + outputSize + inputSize];
+
+  //initialize to 0
+  for (int i = 0; i < inputSize; ++i) {
+    input[i] = 0;
+  }
+  for (int i = 0; i < hiddenLayerSize*(hiddenLayerCount+2) + outputSize; ++i) {
+    output[i] = 0;
+  }
+  for (int i = 0; i < hiddenLayerSize*hiddenLayerSize*hiddenLayerCount + inputSize*(hiddenLayerSize+1) + outputSize*(hiddenLayerSize+1); ++i) {
+    wmatrix[i] = 0;
+  }
+  for (int i = 0; i < hiddenLayerSize*(hiddenLayerCount+2) + outputSize + inputSize; ++i) {
+    bias[i] = 0;
+  }
 }
 
 neuralnet::~neuralnet() {
@@ -26,9 +40,9 @@ neuralnet::~neuralnet() {
 void neuralnet::loadNet() {
   //TODO: Add a safeguard to prevent loading models multiple times.
   int inputDataSize = inputSize*sizeof(float);
-  int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
-  int wmatrixDataSize = (hiddenLayerSize*hiddenLayerSize*hiddenLayerCount + inputSize*hiddenLayerSize + outputSize*hiddenLayerSize)*sizeof(float);
-  int biasDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
+  int outputDataSize = (hiddenLayerSize*(hiddenLayerCount+2) + outputSize)*sizeof(float);
+  int wmatrixDataSize = (hiddenLayerSize*hiddenLayerSize*(hiddenLayerCount+1) + inputSize*(hiddenLayerSize+1) + outputSize*(hiddenLayerSize+1))*sizeof(float);
+  int biasDataSize = (hiddenLayerSize*(hiddenLayerCount+2) + outputSize)*sizeof(float);
 
   cudaMalloc(&device_input, inputDataSize);
   cudaMalloc(&device_output, outputDataSize);
@@ -48,7 +62,7 @@ void neuralnet::loadNet() {
 
 void neuralnet::getOutput(float* out) {
   for (int i = 0; i < outputSize; ++i) {
-    out[i] = output[i];
+    out[i] = output[hiddenLayerSize*hiddenLayerCount + i];
   }
 }
 
@@ -66,11 +80,12 @@ void neuralnet::infer() {
   //Copy input to vram
   int inputDataSize = inputSize*sizeof(float);
   cudaMemcpy(device_input, input, inputDataSize, cudaMemcpyHostToDevice);
+  cudaDeviceSynchronize();
   //call gpu kernel
   inference<<<numBlocks, numThreads>>>(device_input, inputSize, device_output, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
   cudaDeviceSynchronize();
   int outputDataSize = (hiddenLayerSize*hiddenLayerCount + outputSize)*sizeof(float);
-  cudaMemcpy(device_output, output, outputDataSize, cudaMemcpyDeviceToHost);
+  cudaMemcpy(output, device_output, outputDataSize, cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
   cudaError_t error = cudaGetLastError();
   if (error!=cudaSuccess) {
@@ -123,13 +138,20 @@ void neuralnet::trn(float lr, int epochs, std::string directory) {
       result[i] = output[hiddenLayerCount*hiddenLayerSize + i];
     }
     for (int i = 0; i < outputSize; ++i) {
-      fileread >> prediction[i]; 
+      fileread >> prediction[i];
     }
     fileread.close();
     for (int i = 0; i < outputSize; ++i) {
       er += abs((result[i] - prediction[i]));
     }
-    er = (2.0/outputSize)*er;
+    er *= (2.0/outputSize);
+    /*TEST BLOCK BEGIN
+    std::cout<<"Error="<<er<<std::endl;
+    std::cout<<"Output tensor:"<<std::endl;
+    for (int i = 0; i < hiddenLayerSize*(hiddenLayerCount+2) + outputSize; ++i) {
+      std::cout<<output[i]<<std::endl;
+    }
+    TEST BLOCK END*/
     avgerr += er;
     //call kernel
     train<<<numBlocks, numThreads>>>(device_input, lr, device_output, inputSize, er, outputSize, device_wmatrix, device_bias, hiddenLayerCount, hiddenLayerSize);
