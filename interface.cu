@@ -1,4 +1,5 @@
 #include "defs.cuh"
+#include <ostream>
 
 void ui::run() {
   int userinpt = 1;
@@ -11,7 +12,10 @@ void ui::run() {
   nnetUserCreate();
   while (userinpt != 0) {
     std::cout<<"Neural net: "<<*user_nnet<<" is active."<<std::endl;
-    std::cout<<"Input your command. Commands are: X Y Z"<<std::endl;
+    std::cout<<"Input your command. Commands are:"<<std::endl
+      <<"1: Inference network"<<std::endl
+      <<"2: Train network"<<std::endl
+      <<"0: Exit program"<<std::endl;
     getint(userinpt);
     mainmenu(userinpt);
   }
